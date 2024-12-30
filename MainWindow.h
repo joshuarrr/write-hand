@@ -28,6 +28,7 @@ private slots:
 
 private:
     void setupToolbar();
+    void setupMenuBar();
     void updateTheme();
     void saveCurrentFile();
 

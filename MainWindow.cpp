@@ -14,6 +14,8 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_editorWidget(new EditorWidget(this)), m_fileTreeWidget(new FileTreeWidget(this)), m_welcomeWidget(new WelcomeWidget(this)), m_formatToolBar(nullptr)
 {
+    setupMenuBar();
+
     // Create a container widget for the editor area
     QWidget *editorContainer = new QWidget(this);
     QStackedLayout *stackedLayout = new QStackedLayout(editorContainer);
@@ -255,39 +257,8 @@ void MainWindow::setupToolbar()
 
     m_formatToolBar->addSeparator();
 
-    // File operations - New Document
-    QIcon newIcon = QIcon::fromTheme("document-new");
-    QPixmap newPixmap(24, 24);
-    newPixmap.fill(Qt::transparent);
-    QPainter newPainter(&newPixmap);
-    newPainter.setRenderHint(QPainter::Antialiasing);
-    newPainter.setPen(QPen(QColor("#E0E0E0")));
-    newPainter.setBrush(Qt::NoBrush);
-
-    // Draw a simple document icon with plus
-    newPainter.drawRect(6, 4, 12, 16);
-    newPainter.drawLine(12, 8, 12, 16); // Vertical line of plus
-    newPainter.drawLine(8, 12, 16, 12); // Horizontal line of plus
-    newPainter.end();
-
-    QIcon customNewIcon;
-    customNewIcon.addPixmap(newPixmap, QIcon::Normal, QIcon::Off);
-
-    // Create brighter version for hover
-    QPixmap hoverPixmap = newPixmap;
-    hoverPixmap.fill(Qt::transparent);
-    QPainter hoverPainter(&hoverPixmap);
-    hoverPainter.setRenderHint(QPainter::Antialiasing);
-    hoverPainter.setPen(QPen(QColor("#FFFFFF")));
-    hoverPainter.setBrush(Qt::NoBrush);
-    hoverPainter.drawRect(6, 4, 12, 16);
-    hoverPainter.drawLine(12, 8, 12, 16);
-    hoverPainter.drawLine(8, 12, 16, 12);
-    hoverPainter.end();
-    customNewIcon.addPixmap(hoverPixmap, QIcon::Active, QIcon::Off);
-    customNewIcon.addPixmap(hoverPixmap, QIcon::Selected, QIcon::Off);
-
-    QAction *newAction = m_formatToolBar->addAction(customNewIcon, "New");
+    // File operations
+    QAction *newAction = m_formatToolBar->addAction(QIcon::fromTheme("document-new"), "New");
     newAction->setShortcut(QKeySequence::New);
     connect(newAction, &QAction::triggered, m_fileTreeWidget, &FileTreeWidget::createNewFile);
 
@@ -458,4 +429,112 @@ void MainWindow::setUnderline()
     QTextCharFormat format;
     format.setFontUnderline(!m_editorWidget->editor()->fontUnderline());
     m_editorWidget->editor()->textCursor().mergeCharFormat(format);
+}
+
+void MainWindow::setupMenuBar()
+{
+    QMenuBar *menuBar = new QMenuBar(this);
+    setMenuBar(menuBar);
+
+    // File Menu
+    QMenu *fileMenu = menuBar->addMenu("File");
+    QAction *newAction = new QAction("New", this);
+    newAction->setShortcut(QKeySequence::New);
+    connect(newAction, &QAction::triggered, m_fileTreeWidget, &FileTreeWidget::createNewFile);
+    fileMenu->addAction(newAction);
+
+    QAction *openAction = new QAction("Open...", this);
+    openAction->setShortcut(QKeySequence::Open);
+    connect(openAction, &QAction::triggered, this, [this]() { /* TODO */ });
+    fileMenu->addAction(openAction);
+
+    fileMenu->addSeparator();
+
+    QAction *saveAction = new QAction("Save", this);
+    saveAction->setShortcut(QKeySequence::Save);
+    connect(saveAction, &QAction::triggered, this, &MainWindow::saveCurrentFile);
+    fileMenu->addAction(saveAction);
+
+    QAction *saveAsAction = new QAction("Save As...", this);
+    saveAsAction->setShortcut(QKeySequence::SaveAs);
+    connect(saveAsAction, &QAction::triggered, this, [this]() { /* TODO */ });
+    fileMenu->addAction(saveAsAction);
+
+    fileMenu->addSeparator();
+
+    QAction *exportAction = new QAction("Export", this);
+    connect(exportAction, &QAction::triggered, this, [this]() { /* TODO */ });
+    fileMenu->addAction(exportAction);
+
+    fileMenu->addSeparator();
+
+    QAction *quitAction = new QAction("Quit", this);
+    quitAction->setShortcut(QKeySequence::Quit);
+    connect(quitAction, &QAction::triggered, this, &MainWindow::close);
+    fileMenu->addAction(quitAction);
+
+    // Edit Menu
+    QMenu *editMenu = menuBar->addMenu("Edit");
+    QAction *undoAction = new QAction("Undo", this);
+    undoAction->setShortcut(QKeySequence::Undo);
+    connect(undoAction, &QAction::triggered, m_editorWidget->editor(), &QTextEdit::undo);
+    editMenu->addAction(undoAction);
+
+    QAction *redoAction = new QAction("Redo", this);
+    redoAction->setShortcut(QKeySequence::Redo);
+    connect(redoAction, &QAction::triggered, m_editorWidget->editor(), &QTextEdit::redo);
+    editMenu->addAction(redoAction);
+
+    editMenu->addSeparator();
+
+    QAction *cutAction = new QAction("Cut", this);
+    cutAction->setShortcut(QKeySequence::Cut);
+    connect(cutAction, &QAction::triggered, m_editorWidget->editor(), &QTextEdit::cut);
+    editMenu->addAction(cutAction);
+
+    QAction *copyAction = new QAction("Copy", this);
+    copyAction->setShortcut(QKeySequence::Copy);
+    connect(copyAction, &QAction::triggered, m_editorWidget->editor(), &QTextEdit::copy);
+    editMenu->addAction(copyAction);
+
+    QAction *pasteAction = new QAction("Paste", this);
+    pasteAction->setShortcut(QKeySequence::Paste);
+    connect(pasteAction, &QAction::triggered, m_editorWidget->editor(), &QTextEdit::paste);
+    editMenu->addAction(pasteAction);
+
+    editMenu->addSeparator();
+
+    QAction *selectAllAction = new QAction("Select All", this);
+    selectAllAction->setShortcut(QKeySequence::SelectAll);
+    connect(selectAllAction, &QAction::triggered, m_editorWidget->editor(), &QTextEdit::selectAll);
+    editMenu->addAction(selectAllAction);
+
+    // View Menu
+    QMenu *viewMenu = menuBar->addMenu("View");
+    QAction *toggleSidebarAction = new QAction("Toggle Sidebar", this);
+    toggleSidebarAction->setCheckable(true);
+    toggleSidebarAction->setChecked(true);
+    toggleSidebarAction->setShortcut(QKeySequence("Ctrl+\\"));
+    connect(toggleSidebarAction, &QAction::triggered, this, &MainWindow::toggleSidebar);
+    viewMenu->addAction(toggleSidebarAction);
+
+    // Format Menu
+    QMenu *formatMenu = menuBar->addMenu("Format");
+    QAction *boldAction = new QAction("Bold", this);
+    boldAction->setCheckable(true);
+    boldAction->setShortcut(QKeySequence::Bold);
+    connect(boldAction, &QAction::triggered, this, &MainWindow::setBold);
+    formatMenu->addAction(boldAction);
+
+    QAction *italicAction = new QAction("Italic", this);
+    italicAction->setCheckable(true);
+    italicAction->setShortcut(QKeySequence::Italic);
+    connect(italicAction, &QAction::triggered, this, &MainWindow::setItalic);
+    formatMenu->addAction(italicAction);
+
+    QAction *underlineAction = new QAction("Underline", this);
+    underlineAction->setCheckable(true);
+    underlineAction->setShortcut(QKeySequence::Underline);
+    connect(underlineAction, &QAction::triggered, this, &MainWindow::setUnderline);
+    formatMenu->addAction(underlineAction);
 }

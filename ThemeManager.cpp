@@ -381,13 +381,14 @@ void ThemeManager::loadStyleSheets()
         QColumnView::item {
             padding: 6px 8px;
             border: none;
+            border-radius: 4px;
         }
         QColumnView::item:hover {
             background-color: #252525;
         }
         QColumnView::item:selected {
-            background-color: #282828;
-            color: #E0E0E0;
+            background-color: #323232;
+            color: #FFFFFF;
         }
         QListView {
             background-color: #171717;
@@ -402,13 +403,14 @@ void ThemeManager::loadStyleSheets()
             padding: 6px 8px;
             border: none;
             margin: 0;
+            border-radius: 4px;
         }
         QListView::item:hover {
             background-color: #252525;
         }
         QListView::item:selected {
-            background-color: #282828;
-            color: #E0E0E0;
+            background-color: #323232;
+            color: #FFFFFF;
         }
         QScrollBar:vertical {
             border: none;
