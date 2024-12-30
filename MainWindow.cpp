@@ -12,7 +12,7 @@
 // Test comment to verify watch script
 // Another test comment to verify rebuild
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_editorWidget(new EditorWidget(this)), m_fileTreeWidget(new FileTreeWidget(this)), m_welcomeWidget(new WelcomeWidget(this)), m_splitter(new QSplitter(Qt::Horizontal, this)), m_formatToolBar(nullptr)
+    : QMainWindow(parent), m_editorWidget(new EditorWidget(this)), m_fileTreeWidget(new FileTreeWidget(this)), m_welcomeWidget(new WelcomeWidget(this)), m_formatToolBar(nullptr)
 {
     // Create a container widget for the editor area
     QWidget *editorContainer = new QWidget(this);
@@ -20,16 +20,41 @@ MainWindow::MainWindow(QWidget *parent)
     stackedLayout->addWidget(m_welcomeWidget); // Add welcome widget first
     stackedLayout->addWidget(m_editorWidget);  // Add editor widget second
 
-    // Add widgets to splitter
-    m_splitter->addWidget(m_fileTreeWidget);
-    m_splitter->addWidget(editorContainer);
+    // Create a container for the file tree and editor
+    QWidget *contentContainer = new QWidget(this);
+    QHBoxLayout *contentLayout = new QHBoxLayout(contentContainer);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setSpacing(0);
 
-    // Set initial sizes
+    // Create a splitter
+    QSplitter *splitter = new QSplitter(Qt::Horizontal, contentContainer);
+    splitter->addWidget(m_fileTreeWidget);
+    splitter->addWidget(editorContainer);
+
+    // Style the splitter
+    splitter->setStyleSheet(
+        "QSplitter::handle { "
+        "   background-color: #2D2D2D; "
+        "   width: 1px; "
+        "   height: 1px; "
+        "} "
+        "QSplitter::handle:hover { "
+        "   background-color: #3D3D3D; "
+        "}");
+
+    // Set initial sizes (40% for file tree, 60% for editor)
     QList<int> sizes;
-    sizes << 200 << 800; // Sidebar: 200px, Editor: 800px
-    m_splitter->setSizes(sizes);
+    sizes << 400 << 600;
+    splitter->setSizes(sizes);
 
-    setCentralWidget(m_splitter);
+    // Add splitter to layout
+    contentLayout->addWidget(splitter);
+
+    // Set size policies
+    m_fileTreeWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    editorContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    setCentralWidget(contentContainer);
     setupToolbar();
 
     // Connect signals
@@ -82,7 +107,6 @@ void MainWindow::updateTheme()
 {
     auto &theme = ThemeManager::instance();
     setStyleSheet(QString("QMainWindow { background-color: %1; }").arg(theme.getColor("background")));
-    m_splitter->setStyleSheet(theme.getStyleSheet("splitter"));
 
     if (m_formatToolBar)
     {
@@ -117,26 +141,25 @@ void MainWindow::setupToolbar()
         QFile file(path);
         if (file.exists())
         {
-            qDebug() << "Found icon at:" << path;
             icon = QIcon(path);
             if (!icon.isNull())
-            {
-                qDebug() << "Successfully loaded icon from:" << path;
                 break;
-            }
-        }
-        else
-        {
-            qDebug() << "Icon not found at:" << path;
         }
     }
 
+    // Use text icon as fallback
     if (icon.isNull())
     {
-        qDebug() << "Failed to load icon from any path";
+        sidebarAction->setText("☰");
+        QFont font = sidebarAction->font();
+        font.setPointSize(14);
+        sidebarAction->setFont(font);
+    }
+    else
+    {
+        sidebarAction->setIcon(icon);
     }
 
-    sidebarAction->setIcon(icon);
     sidebarAction->setToolTip("Toggle Sidebar");
     sidebarAction->setCheckable(true);
     sidebarAction->setChecked(true);

@@ -1,5 +1,4 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QSplitter>
@@ -35,9 +34,6 @@ private:
     EditorWidget *m_editorWidget;
     FileTreeWidget *m_fileTreeWidget;
     WelcomeWidget *m_welcomeWidget;
-    QSplitter *m_splitter;
     QString m_currentFile;
     QToolBar *m_formatToolBar;
 };
-
-#endif // MAINWINDOW_H
