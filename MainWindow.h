@@ -25,6 +25,7 @@ private slots:
     void setItalic();
     void setUnderline();
     void onThemeChanged(bool isDarkMode);
+    void openFile();
 
 private:
     void setupToolbar();

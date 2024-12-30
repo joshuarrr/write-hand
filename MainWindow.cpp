@@ -8,6 +8,8 @@
 #include <QtCore/QStandardPaths>
 #include <QtCore/QDir>
 #include <QtSvg/QSvgRenderer>
+#include <QtWidgets/QFileDialog>
+#include <QtWidgets/QMessageBox>
 
 // Test comment to verify watch script
 // Another test comment to verify rebuild
@@ -445,7 +447,7 @@ void MainWindow::setupMenuBar()
 
     QAction *openAction = new QAction("Open...", this);
     openAction->setShortcut(QKeySequence::Open);
-    connect(openAction, &QAction::triggered, this, [this]() { /* TODO */ });
+    connect(openAction, &QAction::triggered, this, &MainWindow::openFile);
     fileMenu->addAction(openAction);
 
     fileMenu->addSeparator();
@@ -537,4 +539,45 @@ void MainWindow::setupMenuBar()
     underlineAction->setShortcut(QKeySequence::Underline);
     connect(underlineAction, &QAction::triggered, this, &MainWindow::setUnderline);
     formatMenu->addAction(underlineAction);
+}
+
+void MainWindow::openFile()
+{
+    QString appPath = QDir::homePath() + "/Documents/WriteHand";
+    QString filePath = QFileDialog::getOpenFileName(this,
+                                                    tr("Open File"),
+                                                    appPath,
+                                                    tr("Text Files (*.txt *.md *.rtf *.html *.markdown *.text);;All Files (*)"));
+
+    if (!filePath.isEmpty())
+    {
+        // Check if the file is outside the app directory
+        if (!filePath.startsWith(appPath))
+        {
+            // Copy the file to the app directory
+            QFileInfo fileInfo(filePath);
+            QString newPath = appPath + "/" + fileInfo.fileName();
+
+            // Ensure unique filename
+            int counter = 1;
+            while (QFile::exists(newPath))
+            {
+                QString baseName = fileInfo.baseName();
+                QString suffix = fileInfo.completeSuffix();
+                newPath = QString("%1/%2_%3.%4").arg(appPath, baseName).arg(counter).arg(suffix);
+                counter++;
+            }
+
+            if (QFile::copy(filePath, newPath))
+            {
+                filePath = newPath;
+            }
+            else
+            {
+                QMessageBox::warning(this, tr("Error"), tr("Could not copy file to application directory."));
+                return;
+            }
+        }
+        onFileSelected(filePath);
+    }
 }
