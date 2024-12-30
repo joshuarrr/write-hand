@@ -26,6 +26,8 @@ private slots:
     void setUnderline();
     void onThemeChanged(bool isDarkMode);
     void openFile();
+    void saveAs();
+    void exportFile();
 
 private:
     void setupToolbar();

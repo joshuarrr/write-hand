@@ -4,12 +4,17 @@
 #include <QtGui/QStyleHints>
 #include <QtWidgets/QStackedLayout>
 #include <QtWidgets/QToolBar>
+#include <QtWidgets/QToolButton>
+#include <QtWidgets/QMenuBar>
+#include <QtWidgets/QMenu>
 #include <QtCore/QDebug>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QDir>
 #include <QtSvg/QSvgRenderer>
 #include <QtWidgets/QFileDialog>
 #include <QtWidgets/QMessageBox>
+#include <QtPrintSupport/QPrinter>
+#include <QtGui/QPainter>
 
 // Test comment to verify watch script
 // Another test comment to verify rebuild
@@ -459,13 +464,13 @@ void MainWindow::setupMenuBar()
 
     QAction *saveAsAction = new QAction("Save As...", this);
     saveAsAction->setShortcut(QKeySequence::SaveAs);
-    connect(saveAsAction, &QAction::triggered, this, [this]() { /* TODO */ });
+    connect(saveAsAction, &QAction::triggered, this, &MainWindow::saveAs);
     fileMenu->addAction(saveAsAction);
 
     fileMenu->addSeparator();
 
     QAction *exportAction = new QAction("Export", this);
-    connect(exportAction, &QAction::triggered, this, [this]() { /* TODO */ });
+    connect(exportAction, &QAction::triggered, this, &MainWindow::exportFile);
     fileMenu->addAction(exportAction);
 
     fileMenu->addSeparator();
@@ -579,5 +584,124 @@ void MainWindow::openFile()
             }
         }
         onFileSelected(filePath);
+    }
+}
+
+void MainWindow::saveAs()
+{
+    QString defaultPath;
+    if (!m_currentFile.isEmpty())
+    {
+        // Use the directory of the current file
+        QFileInfo currentFileInfo(m_currentFile);
+        defaultPath = currentFileInfo.absolutePath() + "/" + currentFileInfo.fileName();
+    }
+    else
+    {
+        defaultPath = QDir::homePath() + "/Documents/WriteHand";
+    }
+
+    QString filePath = QFileDialog::getSaveFileName(this,
+                                                    tr("Save As"),
+                                                    defaultPath,
+                                                    tr("Text Files (*.txt);;Markdown Files (*.md);;Rich Text Files (*.rtf);;HTML Files (*.html);;All Files (*)"));
+
+    if (!filePath.isEmpty())
+    {
+        // Save the file
+        QFile file(filePath);
+        if (file.open(QIODevice::WriteOnly))
+        {
+            QTextStream out(&file);
+            bool isRichText = filePath.endsWith(".rtf", Qt::CaseInsensitive);
+            out << m_editorWidget->content(isRichText);
+            file.close();
+
+            // Update current file and window title
+            m_currentFile = filePath;
+            setWindowTitle("WriteHand - " + QFileInfo(filePath).fileName());
+
+            // Update file tree
+            m_fileTreeWidget->selectFile(filePath);
+        }
+        else
+        {
+            QMessageBox::warning(this, tr("Error"), tr("Could not save file."));
+        }
+    }
+}
+
+void MainWindow::exportFile()
+{
+    QString defaultPath;
+    if (!m_currentFile.isEmpty())
+    {
+        // Use the directory of the current file
+        QFileInfo currentFileInfo(m_currentFile);
+        defaultPath = currentFileInfo.absolutePath() + "/" + currentFileInfo.baseName();
+    }
+    else
+    {
+        defaultPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    }
+
+    QString filePath = QFileDialog::getSaveFileName(this,
+                                                    tr("Export File"),
+                                                    defaultPath,
+                                                    tr("PDF Files (*.pdf);;Word Documents (*.docx);;Text Files (*.txt);;Markdown Files (*.md);;Rich Text Files (*.rtf);;HTML Files (*.html);;All Files (*)"));
+
+    if (!filePath.isEmpty())
+    {
+        if (filePath.endsWith(".pdf", Qt::CaseInsensitive))
+        {
+            // Export as PDF
+            QPrinter printer(QPrinter::HighResolution);
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(filePath);
+
+            // Set page size and margins
+            printer.setPageSize(QPageSize(QPageSize::A4));
+            printer.setPageMargins(QMarginsF(20, 20, 20, 20), QPageLayout::Millimeter);
+
+            m_editorWidget->editor()->document()->print(&printer);
+        }
+        else if (filePath.endsWith(".docx", Qt::CaseInsensitive))
+        {
+            // For DOCX, we'll save as HTML first and let the user know they need to convert it
+            QString htmlPath = filePath;
+            htmlPath.replace(".docx", ".html");
+
+            QFile file(htmlPath);
+            if (file.open(QIODevice::WriteOnly))
+            {
+                QTextStream out(&file);
+                out << m_editorWidget->editor()->toHtml();
+                file.close();
+
+                QMessageBox::information(this, tr("Export as Word"),
+                                         tr("The document has been exported as HTML. To convert to Word format:\n\n"
+                                            "1. Open Microsoft Word or LibreOffice\n"
+                                            "2. Open the saved HTML file\n"
+                                            "3. Save as DOCX\n\n"
+                                            "The HTML file has been saved as: %1")
+                                             .arg(htmlPath));
+            }
+        }
+        else
+        {
+            // Handle other formats as before
+            QFile file(filePath);
+            if (file.open(QIODevice::WriteOnly))
+            {
+                QTextStream out(&file);
+                bool isRichText = filePath.endsWith(".rtf", Qt::CaseInsensitive);
+                out << m_editorWidget->content(isRichText);
+                file.close();
+            }
+            else
+            {
+                QMessageBox::warning(this, tr("Error"), tr("Could not export file."));
+            }
+        }
     }
 }
