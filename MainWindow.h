@@ -2,6 +2,14 @@
 
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QSplitter>
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QFormLayout>
+#include <QtWidgets/QGroupBox>
+#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QFontComboBox>
+#include <QtWidgets/QSpinBox>
+#include <QtWidgets/QPushButton>
 #include "EditorWidget.h"
 #include "FileTreeWidget.h"
 #include "WelcomeWidget.h"
@@ -28,6 +36,7 @@ private slots:
     void openFile();
     void saveAs();
     void exportFile();
+    void showPreferences();
 
 private:
     void setupToolbar();

@@ -516,6 +516,19 @@ void MainWindow::setupMenuBar()
     connect(selectAllAction, &QAction::triggered, m_editorWidget->editor(), &QTextEdit::selectAll);
     editMenu->addAction(selectAllAction);
 
+    editMenu->addSeparator();
+
+    // Add Preferences to Edit menu
+    QAction *preferencesAction = new QAction("Preferences...", this);
+    preferencesAction->setShortcut(QKeySequence::Preferences); // Cmd+, on macOS
+    connect(preferencesAction, &QAction::triggered, this, &MainWindow::showPreferences);
+    editMenu->addAction(preferencesAction);
+
+#ifdef Q_OS_MAC
+    // On macOS, add it to the application menu as well
+    menuBar->addAction(preferencesAction);
+#endif
+
     // View Menu
     QMenu *viewMenu = menuBar->addMenu("View");
     QAction *toggleSidebarAction = new QAction("Toggle Sidebar", this);
@@ -544,6 +557,63 @@ void MainWindow::setupMenuBar()
     underlineAction->setShortcut(QKeySequence::Underline);
     connect(underlineAction, &QAction::triggered, this, &MainWindow::setUnderline);
     formatMenu->addAction(underlineAction);
+}
+
+void MainWindow::showPreferences()
+{
+    // Create preferences dialog
+    QDialog prefsDialog(this);
+    prefsDialog.setWindowTitle("Preferences");
+    prefsDialog.setMinimumWidth(400);
+
+    // Create layout
+    QVBoxLayout *layout = new QVBoxLayout(&prefsDialog);
+
+    // Theme section
+    QGroupBox *themeGroup = new QGroupBox("Theme", &prefsDialog);
+    QVBoxLayout *themeLayout = new QVBoxLayout(themeGroup);
+
+    QCheckBox *darkModeCheckbox = new QCheckBox("Dark Mode", themeGroup);
+    darkModeCheckbox->setChecked(ThemeManager::instance().isDarkMode());
+    connect(darkModeCheckbox, &QCheckBox::toggled, &ThemeManager::instance(), &ThemeManager::setDarkMode);
+    themeLayout->addWidget(darkModeCheckbox);
+
+    layout->addWidget(themeGroup);
+
+    // Editor section
+    QGroupBox *editorGroup = new QGroupBox("Editor", &prefsDialog);
+    QFormLayout *editorLayout = new QFormLayout(editorGroup);
+
+    // Font family
+    QFontComboBox *fontCombo = new QFontComboBox(editorGroup);
+    fontCombo->setCurrentFont(m_editorWidget->editor()->font());
+    connect(fontCombo, &QFontComboBox::currentFontChanged, [this](const QFont &font)
+            {
+        QFont newFont = m_editorWidget->editor()->font();
+        newFont.setFamily(font.family());
+        m_editorWidget->editor()->setFont(newFont); });
+    editorLayout->addRow("Font:", fontCombo);
+
+    // Font size
+    QSpinBox *fontSizeSpinner = new QSpinBox(editorGroup);
+    fontSizeSpinner->setRange(8, 72);
+    fontSizeSpinner->setValue(m_editorWidget->editor()->font().pointSize());
+    connect(fontSizeSpinner, QOverload<int>::of(&QSpinBox::valueChanged), [this](int size)
+            {
+        QFont newFont = m_editorWidget->editor()->font();
+        newFont.setPointSize(size);
+        m_editorWidget->editor()->setFont(newFont); });
+    editorLayout->addRow("Font Size:", fontSizeSpinner);
+
+    layout->addWidget(editorGroup);
+
+    // Add OK button
+    QPushButton *okButton = new QPushButton("OK", &prefsDialog);
+    connect(okButton, &QPushButton::clicked, &prefsDialog, &QDialog::accept);
+    layout->addWidget(okButton);
+
+    // Show dialog
+    prefsDialog.exec();
 }
 
 void MainWindow::openFile()

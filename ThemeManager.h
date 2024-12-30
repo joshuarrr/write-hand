@@ -13,6 +13,7 @@ public:
   static ThemeManager &instance();
 
   bool isDarkMode() const;
+  void setDarkMode(bool darkMode);
   QString getStyleSheet(const QString &component) const;
   QString getColor(const QString &colorName) const;
 

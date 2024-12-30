@@ -473,3 +473,12 @@ void ThemeManager::loadStyleSheets()
         }
     )";
 }
+
+void ThemeManager::setDarkMode(bool darkMode)
+{
+  if (m_isDarkMode != darkMode)
+  {
+    m_isDarkMode = darkMode;
+    emit themeChanged(darkMode);
+  }
+}
