@@ -1,0 +1,75 @@
+QTreeView {
+    background-color: transparent;
+    border: none;
+    font-size: 13px;
+    padding: 8px;
+}
+
+QTreeView::item {
+    padding: 4px;
+    border-radius: 4px;
+}
+
+QTreeView::item:selected {
+    background-color: rgba(128, 128, 128, 0.2);
+    color: palette(text);
+}
+
+QTreeView::item:hover {
+    background-color: rgba(128, 128, 128, 0.1);
+}
+
+/* Section headers */
+QTreeView::item[data="section"] {
+    color: rgba(128, 128, 128, 0.8);
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 11px;
+    padding-top: 16px;
+    padding-bottom: 8px;
+}
+
+/* Placeholders */
+QTreeView::item[data="placeholder"] {
+    color: rgba(128, 128, 128, 0.6);
+    font-style: italic;
+}
+
+/* Location items */
+QTreeView::item[data="location"] {
+    font-weight: bold;
+}
+
+/* Smart folder items */
+QTreeView::item[data="smartfolder"] {
+    color: #8e44ad;
+}
+
+/* Branch indicators */
+QTreeView::branch {
+    background: transparent;
+}
+
+QTreeView::branch:has-siblings:!adjoins-item {
+    border-image: url(:/images/vline.png) 0;
+}
+
+QTreeView::branch:has-siblings:adjoins-item {
+    border-image: url(:/images/branch-more.png) 0;
+}
+
+QTreeView::branch:!has-children:!has-siblings:adjoins-item {
+    border-image: url(:/images/branch-end.png) 0;
+}
+
+QTreeView::branch:has-children:!has-siblings:closed,
+QTreeView::branch:closed:has-children:has-siblings {
+    border-image: none;
+    image: url(:/images/branch-closed.png);
+}
+
+QTreeView::branch:open:has-children:!has-siblings,
+QTreeView::branch:open:has-children:has-siblings {
+    border-image: none;
+    image: url(:/images/branch-open.png);
+} 
