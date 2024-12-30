@@ -36,7 +36,6 @@ MainWindow::MainWindow(QWidget *parent)
         "QSplitter::handle { "
         "   background-color: #2D2D2D; "
         "   width: 1px; "
-        "   height: 1px; "
         "} "
         "QSplitter::handle:hover { "
         "   background-color: #3D3D3D; "
@@ -46,6 +45,10 @@ MainWindow::MainWindow(QWidget *parent)
     QList<int> sizes;
     sizes << 400 << 600;
     splitter->setSizes(sizes);
+
+    // Set minimum sizes to prevent columns from disappearing
+    m_fileTreeWidget->setMinimumWidth(300);
+    editorContainer->setMinimumWidth(400);
 
     // Add splitter to layout
     contentLayout->addWidget(splitter);
@@ -134,7 +137,9 @@ void MainWindow::setupToolbar()
     QStringList paths = {
         iconPath,
         QCoreApplication::applicationDirPath() + "/Contents/Resources/icons/sidebar.svg",
-        ":/icons/sidebar.svg"};
+        ":/icons/sidebar.svg",
+        "../Resources/icons/sidebar.svg" // Add relative path for development
+    };
 
     for (const QString &path : paths)
     {
@@ -147,9 +152,10 @@ void MainWindow::setupToolbar()
         }
     }
 
-    // Use text icon as fallback
+    // Use text icon as fallback only if no SVG is found
     if (icon.isNull())
     {
+        qDebug() << "Failed to load sidebar icon from paths:" << paths;
         sidebarAction->setText("☰");
         QFont font = sidebarAction->font();
         font.setPointSize(14);

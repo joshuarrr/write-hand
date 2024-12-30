@@ -37,6 +37,10 @@ private:
   void addSmartFolder(const QString &name, const QString &filterPattern);
   QString getNextFileName();
   void updateFilesView(QStandardItem *locationItem);
+  void updateSmartFolderView(QStandardItem *smartFolderItem);
+  void updateArchiveView();
+  void updateFavoritesView();
+  void showEmptyState(const QString &message);
 
   QListView *m_locationsView;
   QListView *m_filesView;

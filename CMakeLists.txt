@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
 project(WritingApp VERSION 1.0)
 
+# Enable parallel compilation
+include(ProcessorCount)
+ProcessorCount(N)
+if(NOT N EQUAL 0)
+  set(CMAKE_BUILD_PARALLEL_LEVEL ${N})
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -32,6 +39,7 @@ set(SOURCES
     FileTreeWidget.cpp
     WelcomeWidget.cpp
     ThemeManager.cpp
+    ColumnView.cpp
 )
 
 # Add header files
@@ -41,10 +49,22 @@ set(HEADERS
     FileTreeWidget.h
     WelcomeWidget.h
     ThemeManager.h
+    ColumnView.h
 )
 
 # Create the application bundle
 add_executable(${APP_NAME} MACOSX_BUNDLE ${SOURCES} ${HEADERS})
+
+# Enable precompiled headers
+set(CMAKE_PCH_INSTANTIATE_TEMPLATES ON)
+target_precompile_headers(${APP_NAME} PRIVATE
+    <QtWidgets>
+    <QtCore>
+    <QtGui>
+    <string>
+    <vector>
+    <memory>
+)
 
 # Link Qt libraries
 target_link_libraries(${APP_NAME} PRIVATE
@@ -57,6 +77,8 @@ target_link_libraries(${APP_NAME} PRIVATE
 
 # Set bundle properties
 set_target_properties(${APP_NAME} PROPERTIES
+    UNITY_BUILD ON
+    UNITY_BUILD_BATCH_SIZE 4  # Adjust this number based on your needs
     MACOSX_BUNDLE_GUI_IDENTIFIER ${APP_BUNDLE_IDENTIFIER}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}

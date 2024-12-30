@@ -1,17 +1,22 @@
 #!/bin/bash
 
-# Kill any running instances of the app
-pkill -f WriteHand
+# Stop on error
+set -e
 
-# Clean build directory
-rm -rf build
-mkdir build
+# Get number of CPU cores
+CORES=$(sysctl -n hw.ncpu)
+
+# Create and enter build directory
+mkdir -p build
 cd build
 
-# Configure and build
-cmake ..
-make -j4
+# Configure with CMake if needed
+if [ ! -f "CMakeCache.txt" ]; then
+  cmake ..
+fi
 
-# Install and run
-make install
-open WriteHand.app
+# Build just the app (skip installation/bundling for faster iteration)
+cmake --build . --target WriteHand -j${CORES}
+
+# Run the app directly from build directory
+./WriteHand.app/Contents/MacOS/WriteHand

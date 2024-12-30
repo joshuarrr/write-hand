@@ -36,10 +36,70 @@ bool ThemeManager::isDarkMode() const
   return m_isDarkMode;
 }
 
-QString ThemeManager::getStyleSheet(const QString &component) const
+QString ThemeManager::getStyleSheet(const QString &widget) const
 {
+  if (widget == "columnView")
+  {
+    return QString(R"(
+            QColumnView {
+                background-color: #171717;
+                border: none;
+                min-width: 200px;
+            }
+            QColumnView::item {
+                padding: 6px 8px;
+                border: none;
+            }
+            QColumnView::item:selected {
+                background-color: #2D2D2D;
+            }
+            QColumnView::item:hover {
+                background-color: #252525;
+            }
+            QAbstractScrollArea {
+                background-color: #171717;
+                border: none;
+            }
+            QListView {
+                background-color: #171717;
+                border-right: 1px solid #252525;
+                min-width: 200px;
+                max-width: 250px;
+                padding: 0;
+                margin: 0;
+            }
+            QScrollBar:horizontal {
+                height: 8px;
+                background: #171717;
+            }
+            QScrollBar::handle:horizontal {
+                background: #404040;
+                min-width: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal {
+                width: 0;
+                height: 0;
+            }
+            QScrollBar:vertical {
+                width: 8px;
+                background: #171717;
+            }
+            QScrollBar::handle:vertical {
+                background: #404040;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {
+                width: 0;
+                height: 0;
+            }
+        )");
+  }
   const auto &styleSheets = m_isDarkMode ? m_darkStyleSheets : m_lightStyleSheets;
-  return styleSheets.value(component);
+  return styleSheets.value(widget);
 }
 
 QString ThemeManager::getColor(const QString &colorName) const
@@ -52,12 +112,12 @@ void ThemeManager::initializeColors()
 {
   // Dark theme colors
   m_darkColors = {
-      {"background", "#2C2C2C"},
+      {"background", "#171717"},
       {"text", "#E0E0E0"},
       {"accent", "#4682B4"},
-      {"hover", "#3C3C3C"},
-      {"selected", "#404040"},
-      {"border", "#404040"},
+      {"hover", "#252525"},
+      {"selected", "#282828"},
+      {"border", "#282828"},
       {"secondaryText", "#808080"}};
 
   // Light theme colors
@@ -76,7 +136,7 @@ void ThemeManager::loadStyleSheets()
   // Editor styles
   m_darkStyleSheets["editor"] = R"(
         QTextEdit {
-            background-color: #2C2C2C;
+            background-color: #171717;
             color: #E0E0E0;
             border: none;
             padding: 20px;
@@ -99,7 +159,7 @@ void ThemeManager::loadStyleSheets()
   // FileTree styles
   m_darkStyleSheets["fileTree"] = R"(
         QTreeView {
-            background-color: #2C2C2C;
+            background-color: #171717;
             border: none;
             padding: 10px;
             font-size: 14px;
@@ -110,11 +170,11 @@ void ThemeManager::loadStyleSheets()
             border-radius: 3px;
         }
         QTreeView::item:hover {
-            background-color: #3C3C3C;
+            background-color: #252525;
         }
         QTreeView::item:selected {
-            background-color: #4682B4;
-            color: white;
+            background-color: #282828;
+            color: #E0E0E0;
         }
         QTreeView::branch {
             background-color: transparent;
@@ -150,8 +210,8 @@ void ThemeManager::loadStyleSheets()
         QToolBar {
             spacing: 8px;
             padding: 5px;
-            background-color: #2C2C2C;
-            border-bottom: 1px solid #404040;
+            background-color: #171717;
+            border-bottom: 1px solid #282828;
         }
         QToolButton {
             border: none;
@@ -161,14 +221,14 @@ void ThemeManager::loadStyleSheets()
             color: #E0E0E0;
         }
         QToolButton:hover {
-            background-color: #3C3C3C;
+            background-color: #252525;
         }
         QToolButton:checked {
-            background-color: #404040;
+            background-color: #282828;
         }
         QToolBar::separator {
             width: 1px;
-            background-color: #404040;
+            background-color: #282828;
             margin: 4px 8px;
         }
     )";
@@ -202,7 +262,7 @@ void ThemeManager::loadStyleSheets()
   // Welcome screen styles
   m_darkStyleSheets["welcome"] = R"(
         QWidget {
-            background-color: #2C2C2C;
+            background-color: #171717;
         }
         QLabel#welcomeLabel {
             color: #4682B4;
@@ -269,9 +329,9 @@ void ThemeManager::loadStyleSheets()
   // Word count label styles
   m_darkStyleSheets["wordCount"] = R"(
         QLabel {
-            background-color: #2C2C2C;
+            background-color: #171717;
             color: #808080;
-            border-top: 1px solid #404040;
+            border-top: 1px solid #282828;
         }
     )";
 
@@ -287,7 +347,7 @@ void ThemeManager::loadStyleSheets()
   m_darkStyleSheets["splitter"] = R"(
         QSplitter::handle {
             width: 1px;
-            background-color: #404040;
+            background-color: #282828;
             margin: 2px;
         }
     )";
@@ -297,6 +357,107 @@ void ThemeManager::loadStyleSheets()
             width: 1px;
             background-color: #d0d0d0;
             margin: 2px;
+        }
+    )";
+
+  // Column view styles
+  m_darkStyleSheets["columnView"] = R"(
+        QColumnView {
+            background-color: #171717;
+            border: none;
+            color: #E0E0E0;
+            font-size: 13px;
+        }
+        QColumnView::item {
+            padding: 6px 8px;
+            border: none;
+        }
+        QColumnView::item:hover {
+            background-color: #252525;
+        }
+        QColumnView::item:selected {
+            background-color: #282828;
+            color: #E0E0E0;
+        }
+        QListView {
+            background-color: #171717;
+            border-right: 1px solid #282828;
+            font-size: 13px;
+            min-width: 180px;
+            padding: 4px;
+            margin: 0;
+            spacing: 0;
+        }
+        QListView::item {
+            padding: 6px 8px;
+            border: none;
+            margin: 0;
+        }
+        QListView::item:hover {
+            background-color: #252525;
+        }
+        QListView::item:selected {
+            background-color: #282828;
+            color: #E0E0E0;
+        }
+        QScrollBar:vertical {
+            border: none;
+            background: #171717;
+            width: 12px;
+            margin: 0;
+        }
+        QScrollBar::handle:vertical {
+            background: #404040;
+            min-height: 20px;
+            border-radius: 6px;
+            margin: 2px;
+        }
+        QScrollBar::add-line:vertical,
+        QScrollBar::sub-line:vertical {
+            height: 0;
+            border: none;
+            background: none;
+        }
+        QScrollBar::add-page:vertical,
+        QScrollBar::sub-page:vertical {
+            background: none;
+        }
+    )";
+
+  m_lightStyleSheets["columnView"] = R"(
+        QColumnView {
+            background-color: #f5f5f5;
+            border: none;
+            color: #333333;
+        }
+        QColumnView::item {
+            padding: 8px;
+            border: none;
+        }
+        QColumnView::item:hover {
+            background-color: #e0e0e0;
+        }
+        QColumnView::item:selected {
+            background-color: #4682B4;
+            color: white;
+        }
+        QListView {
+            background-color: #f5f5f5;
+            border-right: 1px solid #d0d0d0;
+            font-size: 14px;
+            padding: 4px;
+        }
+        QListView::item {
+            padding: 8px;
+            border-radius: 4px;
+            margin: 2px;
+        }
+        QListView::item:hover {
+            background-color: #e0e0e0;
+        }
+        QListView::item:selected {
+            background-color: #4682B4;
+            color: white;
         }
     )";
 }
