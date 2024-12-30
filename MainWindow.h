@@ -37,6 +37,7 @@ private slots:
     void saveAs();
     void exportFile();
     void showPreferences();
+    void showEditorContextMenu(const QPoint &pos);
 
 private:
     void setupToolbar();
@@ -49,4 +50,7 @@ private:
     WelcomeWidget *m_welcomeWidget;
     QString m_currentFile;
     QToolBar *m_formatToolBar;
+    QAction *m_boldAction;
+    QAction *m_italicAction;
+    QAction *m_underlineAction;
 };

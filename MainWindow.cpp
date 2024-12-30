@@ -269,31 +269,51 @@ void MainWindow::setupToolbar()
     newAction->setShortcut(QKeySequence::New);
     connect(newAction, &QAction::triggered, m_fileTreeWidget, &FileTreeWidget::createNewFile);
 
-    // Add a stretcher to push formatting controls to the right
-    QWidget *spacer = new QWidget();
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    m_formatToolBar->addWidget(spacer);
-
-    // Right section - Text formatting
-    m_formatToolBar->addSeparator();
-
-    QAction *boldAction = m_formatToolBar->addAction(QIcon::fromTheme("format-text-bold"), "Bold");
-    boldAction->setCheckable(true);
-    boldAction->setShortcut(QKeySequence::Bold);
-    connect(boldAction, &QAction::triggered, this, &MainWindow::setBold);
-
-    QAction *italicAction = m_formatToolBar->addAction(QIcon::fromTheme("format-text-italic"), "Italic");
-    italicAction->setCheckable(true);
-    italicAction->setShortcut(QKeySequence::Italic);
-    connect(italicAction, &QAction::triggered, this, &MainWindow::setItalic);
-
-    QAction *underlineAction = m_formatToolBar->addAction(QIcon::fromTheme("format-text-underline"), "Underline");
-    underlineAction->setCheckable(true);
-    underlineAction->setShortcut(QKeySequence::Underline);
-    connect(underlineAction, &QAction::triggered, this, &MainWindow::setUnderline);
-
     // Apply initial theme
     m_formatToolBar->setStyleSheet(ThemeManager::instance().getStyleSheet("toolbar"));
+
+    // Create formatting actions (for context menu)
+    m_boldAction = new QAction(QIcon::fromTheme("format-text-bold"), "Bold", this);
+    m_boldAction->setCheckable(true);
+    m_boldAction->setShortcut(QKeySequence::Bold);
+    connect(m_boldAction, &QAction::triggered, this, &MainWindow::setBold);
+
+    m_italicAction = new QAction(QIcon::fromTheme("format-text-italic"), "Italic", this);
+    m_italicAction->setCheckable(true);
+    m_italicAction->setShortcut(QKeySequence::Italic);
+    connect(m_italicAction, &QAction::triggered, this, &MainWindow::setItalic);
+
+    m_underlineAction = new QAction(QIcon::fromTheme("format-text-underline"), "Underline", this);
+    m_underlineAction->setCheckable(true);
+    m_underlineAction->setShortcut(QKeySequence::Underline);
+    connect(m_underlineAction, &QAction::triggered, this, &MainWindow::setUnderline);
+
+    // Set up context menu for editor
+    m_editorWidget->editor()->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_editorWidget->editor(), &QTextEdit::customContextMenuRequested,
+            this, &MainWindow::showEditorContextMenu);
+}
+
+void MainWindow::showEditorContextMenu(const QPoint &pos)
+{
+    QMenu *menu = m_editorWidget->editor()->createStandardContextMenu();
+
+    // Add separator before formatting actions
+    menu->addSeparator();
+
+    // Update formatting action states based on current format
+    QTextCharFormat format = m_editorWidget->editor()->currentCharFormat();
+    m_boldAction->setChecked(format.fontWeight() == QFont::Bold);
+    m_italicAction->setChecked(format.fontItalic());
+    m_underlineAction->setChecked(format.fontUnderline());
+
+    // Add formatting actions
+    menu->addAction(m_boldAction);
+    menu->addAction(m_italicAction);
+    menu->addAction(m_underlineAction);
+
+    menu->exec(m_editorWidget->editor()->mapToGlobal(pos));
+    delete menu;
 }
 
 void MainWindow::onFileSelected(const QString &filePath)
