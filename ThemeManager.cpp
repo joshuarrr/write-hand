@@ -219,12 +219,22 @@ void ThemeManager::loadStyleSheets()
             padding: 5px;
             min-width: 24px;
             color: #E0E0E0;
+            background: transparent;
         }
         QToolButton:hover {
             background-color: #252525;
         }
         QToolButton:checked {
-            background-color: #282828;
+            background-color: transparent;
+        }
+        QToolButton#sidebarButton {
+            background-color: transparent;
+        }
+        QToolButton#sidebarButton:hover {
+            background-color: transparent;
+        }
+        QToolButton#sidebarButton:checked {
+            background-color: transparent;
         }
         QToolBar::separator {
             width: 1px;

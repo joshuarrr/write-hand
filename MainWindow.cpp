@@ -130,32 +130,73 @@ void MainWindow::setupToolbar()
 
     // Left section - File controls
     QAction *sidebarAction = new QAction(this);
-    QString iconPath = QCoreApplication::applicationDirPath() + "/../Resources/icons/sidebar.svg";
-    QIcon icon;
 
-    // Try different paths
-    QStringList paths = {
-        iconPath,
+    // Try different paths for sidebar icon
+    QStringList sidebarPaths = {
+        QCoreApplication::applicationDirPath() + "/../Resources/icons/sidebar.svg",
         QCoreApplication::applicationDirPath() + "/Contents/Resources/icons/sidebar.svg",
         ":/icons/sidebar.svg",
-        "../Resources/icons/sidebar.svg" // Add relative path for development
+        "../icons/sidebar.svg", // Development path
+        "icons/sidebar.svg"     // Direct path
     };
 
-    for (const QString &path : paths)
+    QIcon sidebarIcon;
+    for (const QString &path : sidebarPaths)
     {
         QFile file(path);
         if (file.exists())
         {
-            icon = QIcon(path);
+            // Load SVG content
+            file.open(QIODevice::ReadOnly);
+            QByteArray content = file.readAll();
+            file.close();
+
+            // Replace currentColor with #E0E0E0 in the SVG content
+            QString svgContent = QString::fromUtf8(content);
+            svgContent.replace("currentColor", "#E0E0E0");
+
+            // Create colored versions for different states
+            QIcon icon;
+            QPixmap pixmap(24, 24);
+
+            // Normal state
+            pixmap.fill(Qt::transparent);
+            QPainter painter(&pixmap);
+            painter.setRenderHint(QPainter::Antialiasing);
+            QSvgRenderer renderer(svgContent.toUtf8());
+            renderer.render(&painter);
+            icon.addPixmap(pixmap, QIcon::Normal, QIcon::Off);
+
+            // Hover/Selected state (brighter)
+            pixmap.fill(Qt::transparent);
+            svgContent.replace("#E0E0E0", "#FFFFFF");
+            QSvgRenderer rendererHover(svgContent.toUtf8());
+            rendererHover.render(&painter);
+            icon.addPixmap(pixmap, QIcon::Selected, QIcon::Off);
+            icon.addPixmap(pixmap, QIcon::Active, QIcon::Off);
+
+            // Disabled state (darker)
+            pixmap.fill(Qt::transparent);
+            svgContent.replace("#FFFFFF", "#808080");
+            QSvgRenderer rendererDisabled(svgContent.toUtf8());
+            rendererDisabled.render(&painter);
+            icon.addPixmap(pixmap, QIcon::Disabled, QIcon::Off);
+
+            painter.end();
+
             if (!icon.isNull())
+            {
+                sidebarIcon = icon;
+                qDebug() << "Loaded sidebar icon from:" << path;
                 break;
+            }
         }
     }
 
     // Use text icon as fallback only if no SVG is found
-    if (icon.isNull())
+    if (sidebarIcon.isNull())
     {
-        qDebug() << "Failed to load sidebar icon from paths:" << paths;
+        qDebug() << "Failed to load sidebar icon from paths:" << sidebarPaths;
         sidebarAction->setText("☰");
         QFont font = sidebarAction->font();
         font.setPointSize(14);
@@ -163,19 +204,90 @@ void MainWindow::setupToolbar()
     }
     else
     {
-        sidebarAction->setIcon(icon);
+        sidebarAction->setIcon(sidebarIcon);
     }
 
     sidebarAction->setToolTip("Toggle Sidebar");
     sidebarAction->setCheckable(true);
     sidebarAction->setChecked(true);
     connect(sidebarAction, &QAction::triggered, this, &MainWindow::toggleSidebar);
+
+    // Add the action and get its QToolButton
     m_formatToolBar->addAction(sidebarAction);
+    if (QToolButton *sidebarButton = qobject_cast<QToolButton *>(m_formatToolBar->widgetForAction(sidebarAction)))
+    {
+        sidebarButton->setObjectName("sidebarButton");
+    }
+
+    // Set application icon
+    QStringList appIconPaths = {
+        QCoreApplication::applicationDirPath() + "/../Resources/icons/app.svg",
+        QCoreApplication::applicationDirPath() + "/Contents/Resources/icons/app.svg",
+        ":/icons/app.svg",
+        "../icons/app.svg", // Development path
+        "icons/app.svg"     // Direct path
+    };
+
+    QIcon appIcon;
+    for (const QString &path : appIconPaths)
+    {
+        QFile file(path);
+        if (file.exists())
+        {
+            appIcon = QIcon(path);
+            if (!appIcon.isNull())
+            {
+                qDebug() << "Loaded app icon from:" << path;
+                break;
+            }
+        }
+    }
+
+    if (!appIcon.isNull())
+    {
+        setWindowIcon(appIcon);
+        qApp->setWindowIcon(appIcon);
+    }
+    else
+    {
+        qDebug() << "Failed to load app icon from paths:" << appIconPaths;
+    }
 
     m_formatToolBar->addSeparator();
 
-    // File operations
-    QAction *newAction = m_formatToolBar->addAction(QIcon::fromTheme("document-new"), "New");
+    // File operations - New Document
+    QIcon newIcon = QIcon::fromTheme("document-new");
+    QPixmap newPixmap(24, 24);
+    newPixmap.fill(Qt::transparent);
+    QPainter newPainter(&newPixmap);
+    newPainter.setRenderHint(QPainter::Antialiasing);
+    newPainter.setPen(QPen(QColor("#E0E0E0")));
+    newPainter.setBrush(Qt::NoBrush);
+
+    // Draw a simple document icon with plus
+    newPainter.drawRect(6, 4, 12, 16);
+    newPainter.drawLine(12, 8, 12, 16); // Vertical line of plus
+    newPainter.drawLine(8, 12, 16, 12); // Horizontal line of plus
+    newPainter.end();
+
+    QIcon customNewIcon;
+    customNewIcon.addPixmap(newPixmap, QIcon::Normal, QIcon::Off);
+
+    // Create brighter version for hover
+    QPixmap hoverPixmap = newPixmap;
+    hoverPixmap.fill(Qt::transparent);
+    QPainter hoverPainter(&hoverPixmap);
+    hoverPainter.setRenderHint(QPainter::Antialiasing);
+    hoverPainter.setPen(QPen(QColor("#FFFFFF")));
+    hoverPainter.setBrush(Qt::NoBrush);
+    hoverPainter.drawRect(6, 4, 12, 16);
+    hoverPainter.drawLine(12, 8, 12, 16);
+    hoverPainter.drawLine(8, 12, 16, 12);
+    hoverPainter.end();
+    customNewIcon.addPixmap(hoverPixmap, QIcon::Active, QIcon::Off);
+    customNewIcon.addPixmap(hoverPixmap, QIcon::Selected, QIcon::Off);
+
+    QAction *newAction = m_formatToolBar->addAction(customNewIcon, "New");
     newAction->setShortcut(QKeySequence::New);
     connect(newAction, &QAction::triggered, m_fileTreeWidget, &FileTreeWidget::createNewFile);
 

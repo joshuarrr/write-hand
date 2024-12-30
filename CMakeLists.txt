@@ -167,4 +167,17 @@ if(APPLE)
             COMMAND codesign --verify --deep --strict --verbose=2 \${CMAKE_INSTALL_PREFIX}/${APP_NAME}.app
         )
     ")
+endif()
+
+# Copy icons to build directory
+file(COPY ${CMAKE_SOURCE_DIR}/icons DESTINATION ${CMAKE_BINARY_DIR})
+
+# Copy icons to app bundle on macOS
+if(APPLE)
+    add_custom_command(TARGET WriteHand POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_BUNDLE_CONTENT_DIR:WriteHand>/Resources/icons"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/icons"
+            "$<TARGET_BUNDLE_CONTENT_DIR:WriteHand>/Resources/icons"
+    )
 endif() 
