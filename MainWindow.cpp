@@ -15,16 +15,32 @@
 #include <QtWidgets/QMessageBox>
 #include <QtPrintSupport/QPrinter>
 #include <QtGui/QPainter>
+#include <QtCore/QPropertyAnimation>
+#include <QtCore/QParallelAnimationGroup>
+#include <QtWidgets/QGraphicsEffect>
 
 // Test comment to verify watch script
 // Another test comment to verify rebuild
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_editorWidget(new EditorWidget(this)), m_fileTreeWidget(new FileTreeWidget(this)), m_welcomeWidget(new WelcomeWidget(this)), m_formatToolBar(nullptr)
+    : QMainWindow(parent), m_editorWidget(new EditorWidget(this)), m_fileTreeWidget(new FileTreeWidget(this)), m_welcomeWidget(new WelcomeWidget(this)), m_formatToolBar(nullptr), m_isDistractionFree(false), m_distractionFreeMarginChars(80), m_wasToolbarVisible(true), m_wasSidebarVisible(true)
 {
+    // Set up logging to file
+    static QFile logFile(QDir::homePath() + "/Documents/WriteHand/writehand.log");
+    if (logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text))
+    {
+        qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &context, const QString &msg)
+                               {
+            static QTextStream stream(&logFile);
+            stream << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz ")
+                  << msg << Qt::endl;
+            stream.flush(); });
+    }
+
     setupMenuBar();
 
     // Create a container widget for the editor area
     QWidget *editorContainer = new QWidget(this);
+    editorContainer->setObjectName("editorContainer"); // Set object name for styling
     QStackedLayout *stackedLayout = new QStackedLayout(editorContainer);
     stackedLayout->addWidget(m_welcomeWidget); // Add welcome widget first
     stackedLayout->addWidget(m_editorWidget);  // Add editor widget second
@@ -113,6 +129,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Initial theme update
     updateTheme();
+
+    setupDistractionFreeMode();
+
+    // Install event filter for hover zones
+    m_topHoverZone->installEventFilter(this);
+    m_bottomHoverZone->installEventFilter(this);
 }
 
 void MainWindow::updateTheme()
@@ -292,6 +314,12 @@ void MainWindow::setupToolbar()
     m_editorWidget->editor()->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_editorWidget->editor(), &QTextEdit::customContextMenuRequested,
             this, &MainWindow::showEditorContextMenu);
+
+    // Add distraction-free mode button
+    m_distractionFreeAction = m_formatToolBar->addAction("Distraction Free");
+    m_distractionFreeAction->setCheckable(true);
+    m_distractionFreeAction->setShortcut(QKeySequence(Qt::Key_F11));
+    connect(m_distractionFreeAction, &QAction::triggered, this, &MainWindow::toggleDistractionFreeMode);
 }
 
 void MainWindow::showEditorContextMenu(const QPoint &pos)
@@ -538,6 +566,24 @@ void MainWindow::setupMenuBar()
 
     editMenu->addSeparator();
 
+    // Add Find/Replace actions
+    QAction *findAction = new QAction("Find...", this);
+    findAction->setShortcut(QKeySequence::Find);
+    connect(findAction, &QAction::triggered, m_editorWidget, &EditorWidget::showFindReplace);
+    editMenu->addAction(findAction);
+
+    QAction *findNextAction = new QAction("Find Next", this);
+    findNextAction->setShortcut(QKeySequence::FindNext);
+    connect(findNextAction, &QAction::triggered, m_editorWidget, &EditorWidget::findNext);
+    editMenu->addAction(findNextAction);
+
+    QAction *findPreviousAction = new QAction("Find Previous", this);
+    findPreviousAction->setShortcut(QKeySequence::FindPrevious);
+    connect(findPreviousAction, &QAction::triggered, m_editorWidget, &EditorWidget::findPrevious);
+    editMenu->addAction(findPreviousAction);
+
+    editMenu->addSeparator();
+
     // Add Preferences to Edit menu
     QAction *preferencesAction = new QAction("Preferences...", this);
     preferencesAction->setShortcut(QKeySequence::Preferences); // Cmd+, on macOS
@@ -577,6 +623,16 @@ void MainWindow::setupMenuBar()
     underlineAction->setShortcut(QKeySequence::Underline);
     connect(underlineAction, &QAction::triggered, this, &MainWindow::setUnderline);
     formatMenu->addAction(underlineAction);
+
+    // Add distraction-free mode button
+    m_distractionFreeAction = viewMenu->addAction("Distraction Free Mode");
+    m_distractionFreeAction->setCheckable(true);
+    m_distractionFreeAction->setShortcut(QKeySequence(Qt::Key_F11));
+    connect(m_distractionFreeAction, &QAction::triggered, this, &MainWindow::toggleDistractionFreeMode);
+
+    // Add alternative shortcut for Option+F
+    QShortcut *altShortcut = new QShortcut(QKeySequence(Qt::AltModifier | Qt::Key_F), this);
+    connect(altShortcut, &QShortcut::activated, this, &MainWindow::toggleDistractionFreeMode);
 }
 
 void MainWindow::showPreferences()
@@ -626,6 +682,24 @@ void MainWindow::showPreferences()
     editorLayout->addRow("Font Size:", fontSizeSpinner);
 
     layout->addWidget(editorGroup);
+
+    // Add Distraction Free section
+    QGroupBox *distractionFreeGroup = new QGroupBox("Distraction Free Mode", &prefsDialog);
+    QFormLayout *distractionFreeLayout = new QFormLayout(distractionFreeGroup);
+
+    QSpinBox *marginSpinner = new QSpinBox(distractionFreeGroup);
+    marginSpinner->setRange(40, 120);
+    marginSpinner->setValue(m_distractionFreeMarginChars);
+    connect(marginSpinner, QOverload<int>::of(&QSpinBox::valueChanged),
+            [this](int value)
+            {
+                m_distractionFreeMarginChars = value;
+                if (m_isDistractionFree)
+                    updateEditorMargins();
+            });
+    distractionFreeLayout->addRow("Text Width (characters):", marginSpinner);
+
+    layout->addWidget(distractionFreeGroup);
 
     // Add OK button
     QPushButton *okButton = new QPushButton("OK", &prefsDialog);
@@ -793,5 +867,430 @@ void MainWindow::exportFile()
                 QMessageBox::warning(this, tr("Error"), tr("Could not export file."));
             }
         }
+    }
+}
+
+void MainWindow::setupDistractionFreeMode()
+{
+    // Create hover detection zones
+    m_topHoverZone = new QWidget(this);
+    m_bottomHoverZone = new QWidget(this);
+
+    // Make them invisible but active
+    m_topHoverZone->setStyleSheet("background-color: transparent;");
+    m_bottomHoverZone->setStyleSheet("background-color: transparent;");
+
+    // Set fixed height for hover zones - increased from 10 to 20 pixels
+    m_topHoverZone->setFixedHeight(20);
+    m_bottomHoverZone->setFixedHeight(20);
+
+    // Initially hide them
+    m_topHoverZone->hide();
+    m_bottomHoverZone->hide();
+
+    // Create overlay widget
+    m_overlay = new QWidget(this);
+    m_overlay->setObjectName("distractionFreeOverlay");
+    m_overlay->hide();
+    m_overlay->setMouseTracking(true);
+    m_overlay->installEventFilter(this); // Add event filter to overlay
+
+    // Set up overlay layout with zero margins
+    m_overlayLayout = new QVBoxLayout(m_overlay);
+    m_overlayLayout->setContentsMargins(0, 0, 0, 0);
+    m_overlayLayout->setSpacing(0);
+
+    // Store original parents
+    m_menuBarParent = menuBar()->parentWidget();
+    m_toolbarParent = m_formatToolBar->parentWidget();
+
+    // Position everything
+    updateHoverZones();
+    updateOverlayGeometry();
+}
+
+void MainWindow::updateOverlayGeometry()
+{
+    if (!m_overlay)
+        return;
+
+    // Calculate total height needed
+    int overlayHeight = menuBar()->sizeHint().height() +
+                        (m_wasToolbarVisible ? m_formatToolBar->sizeHint().height() : 0);
+
+    // Position overlay at the very top of the window
+    if (m_overlay->isVisible())
+    {
+        m_overlay->setGeometry(0, 0, width(), overlayHeight);
+    }
+    else
+    {
+        m_overlay->setGeometry(0, -overlayHeight, width(), overlayHeight);
+    }
+
+    // Update widget widths to match window
+    menuBar()->setFixedWidth(width());
+    if (m_wasToolbarVisible)
+        m_formatToolBar->setFixedWidth(width());
+}
+
+void MainWindow::handleTopHover(bool entered)
+{
+    if (!m_isDistractionFree)
+        return;
+
+    qDebug() << "handleTopHover called with entered =" << entered;
+    qDebug() << "Current overlay visibility:" << m_overlay->isVisible();
+    qDebug() << "Overlay geometry:" << m_overlay->geometry();
+
+    if (entered)
+    {
+        qDebug() << "Showing overlay";
+        // Calculate the height needed
+        int overlayHeight = menuBar()->sizeHint().height() +
+                            (m_wasToolbarVisible ? m_formatToolBar->sizeHint().height() : 0);
+
+        // Position overlay just above the window initially
+        m_overlay->setGeometry(0, -overlayHeight, width(), overlayHeight);
+        m_overlay->show();
+        m_overlay->raise();
+
+        // Create opacity effect for overlay
+        QGraphicsOpacityEffect *overlayEffect = qobject_cast<QGraphicsOpacityEffect *>(m_overlay->graphicsEffect());
+        if (!overlayEffect)
+        {
+            overlayEffect = new QGraphicsOpacityEffect(m_overlay);
+            m_overlay->setGraphicsEffect(overlayEffect);
+        }
+        overlayEffect->setOpacity(0);
+
+        // Create parallel animation group
+        QParallelAnimationGroup *animGroup = new QParallelAnimationGroup(this);
+
+        // Create slide animation
+        QPropertyAnimation *slideAnim = new QPropertyAnimation(m_overlay, "geometry");
+        slideAnim->setDuration(150);
+        slideAnim->setStartValue(QRect(0, -overlayHeight, width(), overlayHeight));
+        slideAnim->setEndValue(QRect(0, 0, width(), overlayHeight));
+        slideAnim->setEasingCurve(QEasingCurve::OutCubic);
+
+        // Create fade animation
+        QPropertyAnimation *fadeIn = new QPropertyAnimation(overlayEffect, "opacity");
+        fadeIn->setDuration(150);
+        fadeIn->setStartValue(0.0);
+        fadeIn->setEndValue(1.0);
+        fadeIn->setEasingCurve(QEasingCurve::OutCubic);
+
+        // Add both animations to the group
+        animGroup->addAnimation(slideAnim);
+        animGroup->addAnimation(fadeIn);
+
+        // Start animation group
+        animGroup->start(QAbstractAnimation::DeleteWhenStopped);
+
+        qDebug() << "After show: overlay visible =" << m_overlay->isVisible();
+        qDebug() << "After show: overlay geometry =" << m_overlay->geometry();
+    }
+    else
+    {
+        qDebug() << "Checking if should hide overlay";
+        // Only start fade out if mouse is not over the overlay
+        QPoint globalPos = QCursor::pos();
+        QPoint localPos = m_overlay->mapFromGlobal(globalPos);
+        if (!m_overlay->rect().contains(localPos))
+        {
+            qDebug() << "Starting fade out";
+            // Get current opacity effect
+            QGraphicsOpacityEffect *overlayEffect = qobject_cast<QGraphicsOpacityEffect *>(m_overlay->graphicsEffect());
+
+            if (!overlayEffect)
+            {
+                overlayEffect = new QGraphicsOpacityEffect(m_overlay);
+                m_overlay->setGraphicsEffect(overlayEffect);
+            }
+
+            // Create parallel animation group
+            QParallelAnimationGroup *animGroup = new QParallelAnimationGroup(this);
+
+            // Create slide animation
+            QPropertyAnimation *slideAnim = new QPropertyAnimation(m_overlay, "geometry");
+            slideAnim->setDuration(150);
+            slideAnim->setStartValue(m_overlay->geometry());
+            slideAnim->setEndValue(QRect(0, -m_overlay->height(), width(), m_overlay->height()));
+            slideAnim->setEasingCurve(QEasingCurve::InCubic);
+
+            // Create fade animation
+            QPropertyAnimation *fadeOut = new QPropertyAnimation(overlayEffect, "opacity");
+            fadeOut->setDuration(150);
+            fadeOut->setStartValue(overlayEffect->opacity());
+            fadeOut->setEndValue(0.0);
+            fadeOut->setEasingCurve(QEasingCurve::InCubic);
+
+            // Add both animations to the group
+            animGroup->addAnimation(slideAnim);
+            animGroup->addAnimation(fadeOut);
+
+            // Hide overlay after animation
+            connect(animGroup, &QParallelAnimationGroup::finished, [this]()
+                    {
+                qDebug() << "Fade out complete, hiding overlay";
+                m_overlay->hide();
+                // Move overlay off-screen after hiding
+                updateOverlayGeometry(); });
+
+            // Start animation group
+            animGroup->start(QAbstractAnimation::DeleteWhenStopped);
+        }
+        else
+        {
+            qDebug() << "Not hiding overlay - mouse still over it";
+        }
+    }
+}
+
+void MainWindow::enterDistractionFreeMode()
+{
+    if (m_isDistractionFree)
+        return;
+
+    m_isDistractionFree = true;
+
+    // Store current states
+    m_wasToolbarVisible = m_formatToolBar->isVisible();
+    m_wasSidebarVisible = m_fileTreeWidget->isVisible();
+
+    // Move menu and toolbar to overlay
+    menuBar()->setParent(m_overlay);
+    m_formatToolBar->setParent(m_overlay);
+
+    // Ensure proper layout
+    menuBar()->setFixedWidth(width());
+    if (m_wasToolbarVisible)
+        m_formatToolBar->setFixedWidth(width());
+
+    m_overlayLayout->addWidget(menuBar());
+    if (m_wasToolbarVisible)
+        m_overlayLayout->addWidget(m_formatToolBar);
+
+    // Hide UI elements initially
+    m_overlay->hide();
+    m_fileTreeWidget->hide();
+
+    // Show hover zones
+    updateHoverZones();
+
+    // Update editor margins
+    updateEditorMargins();
+
+    // Update overlay geometry
+    updateOverlayGeometry();
+
+    // Update action state
+    if (m_distractionFreeAction)
+        m_distractionFreeAction->setChecked(true);
+}
+
+void MainWindow::exitDistractionFreeMode()
+{
+    if (!m_isDistractionFree)
+        return;
+
+    m_isDistractionFree = false;
+
+    // Reset fixed widths
+    menuBar()->setFixedWidth(QWIDGETSIZE_MAX);
+    m_formatToolBar->setFixedWidth(QWIDGETSIZE_MAX);
+
+    // Restore menu and toolbar to their original parents
+    menuBar()->setParent(m_menuBarParent);
+    m_formatToolBar->setParent(m_toolbarParent);
+
+    // Restore UI elements
+    menuBar()->show();
+    if (m_wasToolbarVisible)
+        m_formatToolBar->show();
+    if (m_wasSidebarVisible)
+        m_fileTreeWidget->show();
+
+    // Hide overlay and hover zones
+    m_overlay->hide();
+    updateHoverZones();
+
+    // Reset editor margins
+    m_editorWidget->setStyleSheet("");
+
+    // Update action state
+    if (m_distractionFreeAction)
+        m_distractionFreeAction->setChecked(false);
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    updateHoverZones();
+    updateOverlayGeometry();
+    if (m_isDistractionFree)
+    {
+        updateEditorMargins();
+    }
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    if (m_isDistractionFree)
+    {
+        if (obj == m_topHoverZone)
+        {
+            if (event->type() == QEvent::Enter)
+            {
+                qDebug() << "Top hover zone ENTER";
+                handleTopHover(true);
+                return true;
+            }
+            else if (event->type() == QEvent::Leave)
+            {
+                qDebug() << "Top hover zone LEAVE";
+                // Only handle leave if we're not entering the overlay
+                QPoint globalPos = QCursor::pos();
+                QPoint localPos = m_overlay->mapFromGlobal(globalPos);
+                qDebug() << "Mouse position relative to overlay:" << localPos;
+                qDebug() << "Overlay rect:" << m_overlay->rect();
+                if (!m_overlay->rect().contains(localPos))
+                {
+                    qDebug() << "Hiding overlay (mouse outside)";
+                    handleTopHover(false);
+                }
+                else
+                {
+                    qDebug() << "Keeping overlay (mouse inside)";
+                }
+                return true;
+            }
+        }
+        else if (obj == m_overlay)
+        {
+            if (event->type() == QEvent::Leave)
+            {
+                qDebug() << "Overlay LEAVE";
+                // Check if we're not entering the top hover zone
+                QPoint globalPos = QCursor::pos();
+                QPoint localHoverPos = m_topHoverZone->mapFromGlobal(globalPos);
+                if (!m_topHoverZone->rect().contains(localHoverPos))
+                {
+                    qDebug() << "Mouse left overlay and not in hover zone - hiding";
+                    handleTopHover(false);
+                }
+                else
+                {
+                    qDebug() << "Mouse left overlay but in hover zone - keeping visible";
+                }
+                return true;
+            }
+        }
+        else if (obj == m_bottomHoverZone)
+        {
+            if (event->type() == QEvent::Enter)
+            {
+                handleBottomHover(true);
+                return true;
+            }
+            else if (event->type() == QEvent::Leave)
+            {
+                handleBottomHover(false);
+                return true;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
+}
+
+void MainWindow::handleBottomHover(bool entered)
+{
+    // TODO: Implement status bar show/hide when we add it
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_F11 ||
+        (event->key() == Qt::Key_F && event->modifiers() == Qt::AltModifier) ||
+        (event->key() == Qt::Key_Escape && m_isDistractionFree))
+    {
+        toggleDistractionFreeMode();
+        event->accept();
+        return;
+    }
+    QMainWindow::keyPressEvent(event);
+}
+
+void MainWindow::toggleDistractionFreeMode()
+{
+    qDebug() << "Toggling distraction-free mode. Current state:" << m_isDistractionFree;
+    if (m_isDistractionFree)
+    {
+        exitDistractionFreeMode();
+    }
+    else
+    {
+        enterDistractionFreeMode();
+    }
+    qDebug() << "New distraction-free state:" << m_isDistractionFree;
+}
+
+void MainWindow::updateEditorMargins()
+{
+    if (!m_isDistractionFree)
+        return;
+
+    // Calculate the width in pixels for 80 characters
+    QFontMetrics fm(m_editorWidget->editor()->font());
+    int charWidth = fm.horizontalAdvance(QString(m_distractionFreeMarginChars, 'x'));
+
+    // Calculate margins to center the text
+    int availableWidth = width();
+    int margin = (availableWidth - charWidth) / 2;
+    margin = qMax(margin, 0); // Ensure margin is not negative
+
+    // Get the editor's background color
+    QString bgColor = ThemeManager::instance().getColor("editor-background");
+
+    // Apply margins and styling through stylesheet
+    QString styleSheet = QString(
+                             "QTextEdit { "
+                             "  margin-left: %1px; "
+                             "  margin-right: %1px; "
+                             "  border-left: 1px solid rgba(128, 128, 128, 0.2); "
+                             "  border-right: 1px solid rgba(128, 128, 128, 0.2); "
+                             "  background-color: %2; "
+                             "} "
+                             "QWidget#editorContainer { "
+                             "  background-color: %2; "
+                             "}")
+                             .arg(margin)
+                             .arg(bgColor);
+
+    m_editorWidget->setStyleSheet(styleSheet);
+}
+
+void MainWindow::updateHoverZones()
+{
+    if (m_isDistractionFree)
+    {
+        // Position hover zones at top and bottom of window
+        m_topHoverZone->setGeometry(0, 0, width(), 10);
+        m_bottomHoverZone->setGeometry(0, height() - 10, width(), 10);
+
+        m_topHoverZone->show();
+        m_bottomHoverZone->show();
+
+        qDebug() << "Hover zones updated:";
+        qDebug() << "  Top zone geometry:" << m_topHoverZone->geometry();
+        qDebug() << "  Top zone visible:" << m_topHoverZone->isVisible();
+        qDebug() << "  Top zone parent:" << m_topHoverZone->parent();
+    }
+    else
+    {
+        m_topHoverZone->hide();
+        m_bottomHoverZone->hide();
+        qDebug() << "Hover zones hidden";
     }
 }
