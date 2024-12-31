@@ -10,6 +10,9 @@
 #include <QtWidgets/QFontComboBox>
 #include <QtWidgets/QSpinBox>
 #include <QtWidgets/QPushButton>
+#include <QtGui/QKeyEvent>
+#include <QtGui/QResizeEvent>
+#include <QShortcut>
 #include "EditorWidget.h"
 #include "FileTreeWidget.h"
 #include "WelcomeWidget.h"
@@ -38,12 +41,26 @@ private slots:
     void exportFile();
     void showPreferences();
     void showEditorContextMenu(const QPoint &pos);
+    void toggleDistractionFreeMode();
+    void handleTopHover(bool entered);
+    void handleBottomHover(bool entered);
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     void setupToolbar();
     void setupMenuBar();
     void updateTheme();
     void saveCurrentFile();
+    void setupDistractionFreeMode();
+    void enterDistractionFreeMode();
+    void exitDistractionFreeMode();
+    void updateEditorMargins();
+    void updateHoverZones();
+    void updateOverlayGeometry();
 
     EditorWidget *m_editorWidget;
     FileTreeWidget *m_fileTreeWidget;
@@ -53,4 +70,22 @@ private:
     QAction *m_boldAction;
     QAction *m_italicAction;
     QAction *m_underlineAction;
+    QAction *m_distractionFreeAction;
+    QIcon m_distractionFreeIcon;
+
+    bool m_isDistractionFree;
+    QWidget *m_topHoverZone;
+    QWidget *m_bottomHoverZone;
+    int m_distractionFreeMarginChars;
+    QMenuBar *m_menuBar; // Store menubar pointer for showing/hiding
+
+    // Overlay widget for distraction-free mode
+    QWidget *m_overlay;
+    QVBoxLayout *m_overlayLayout;
+
+    // Store widget states for restoration
+    bool m_wasToolbarVisible;
+    bool m_wasSidebarVisible;
+    QWidget *m_menuBarParent;
+    QWidget *m_toolbarParent;
 };

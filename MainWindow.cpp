@@ -315,8 +315,70 @@ void MainWindow::setupToolbar()
     connect(m_editorWidget->editor(), &QTextEdit::customContextMenuRequested,
             this, &MainWindow::showEditorContextMenu);
 
-    // Add distraction-free mode button
-    m_distractionFreeAction = m_formatToolBar->addAction("Distraction Free");
+    // Add distraction-free mode button with icon
+    QStringList distractionFreePaths = {
+        QCoreApplication::applicationDirPath() + "/../Resources/icons/distraction-free.svg",
+        QCoreApplication::applicationDirPath() + "/Contents/Resources/icons/distraction-free.svg",
+        ":/icons/distraction-free.svg",
+        "../icons/distraction-free.svg", // Development path
+        "icons/distraction-free.svg"     // Direct path
+    };
+
+    for (const QString &path : distractionFreePaths)
+    {
+        QFile file(path);
+        if (file.exists())
+        {
+            // Load SVG content
+            file.open(QIODevice::ReadOnly);
+            QByteArray content = file.readAll();
+            file.close();
+
+            // Replace currentColor with #E0E0E0 in the SVG content
+            QString svgContent = QString::fromUtf8(content);
+            svgContent.replace("currentColor", "#E0E0E0");
+
+            // Create colored versions for different states
+            QIcon icon;
+            QPixmap pixmap(24, 24);
+
+            // Normal state
+            pixmap.fill(Qt::transparent);
+            QPainter painter(&pixmap);
+            painter.setRenderHint(QPainter::Antialiasing);
+            QSvgRenderer renderer(svgContent.toUtf8());
+            renderer.render(&painter);
+            icon.addPixmap(pixmap, QIcon::Normal, QIcon::Off);
+
+            // Hover/Selected state (brighter)
+            pixmap.fill(Qt::transparent);
+            svgContent.replace("#E0E0E0", "#FFFFFF");
+            QSvgRenderer rendererHover(svgContent.toUtf8());
+            rendererHover.render(&painter);
+            icon.addPixmap(pixmap, QIcon::Selected, QIcon::Off);
+            icon.addPixmap(pixmap, QIcon::Active, QIcon::Off);
+
+            // Disabled state (darker)
+            pixmap.fill(Qt::transparent);
+            svgContent.replace("#FFFFFF", "#808080");
+            QSvgRenderer rendererDisabled(svgContent.toUtf8());
+            rendererDisabled.render(&painter);
+            icon.addPixmap(pixmap, QIcon::Disabled, QIcon::Off);
+
+            painter.end();
+
+            if (!icon.isNull())
+            {
+                m_distractionFreeIcon = icon;
+                qDebug() << "Loaded distraction-free icon from:" << path;
+                break;
+            }
+        }
+    }
+
+    // Add to toolbar
+    m_distractionFreeAction = m_formatToolBar->addAction(m_distractionFreeIcon, "");
+    m_distractionFreeAction->setToolTip("Distraction Free Mode (F11)");
     m_distractionFreeAction->setCheckable(true);
     m_distractionFreeAction->setShortcut(QKeySequence(Qt::Key_F11));
     connect(m_distractionFreeAction, &QAction::triggered, this, &MainWindow::toggleDistractionFreeMode);
@@ -626,6 +688,7 @@ void MainWindow::setupMenuBar()
 
     // Add distraction-free mode button
     m_distractionFreeAction = viewMenu->addAction("Distraction Free Mode");
+    m_distractionFreeAction->setIcon(m_distractionFreeIcon);
     m_distractionFreeAction->setCheckable(true);
     m_distractionFreeAction->setShortcut(QKeySequence(Qt::Key_F11));
     connect(m_distractionFreeAction, &QAction::triggered, this, &MainWindow::toggleDistractionFreeMode);
