@@ -1,32 +1,52 @@
-#ifndef EDITORWIDGET_H
-#define EDITORWIDGET_H
+#pragma once
 
 #include <QtWidgets/QWidget>
 #include <QtWidgets/QTextEdit>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QPushButton>
 #include <QtWidgets/QLabel>
+#include <QtWidgets/QFrame>
 
 class EditorWidget : public QWidget
 {
   Q_OBJECT
 
 public:
-  explicit EditorWidget(QWidget *parent = nullptr);
-
-  void setContent(const QString &content, bool isRichText);
-  QString content(bool asRichText) const;
+  EditorWidget(QWidget *parent = nullptr);
+  void setContent(const QString &content, bool isRichText = false);
+  QString content(bool asRichText = false) const;
   void clear();
-  void updateTheme();
   QTextEdit *editor() const { return m_editor; }
 
 signals:
   void contentChanged();
 
+public slots:
+  void showFindReplace();
+  void hideFindReplace();
+  void findNext();
+  void findPrevious();
+  void replace();
+  void replaceAll();
+  void updateSearch();
+
 private:
-  void setupEditor();
-  void updateWordCount();
+  void setupFindReplaceWidget();
+  bool findText(const QString &text, QTextDocument::FindFlags flags = {});
+  void clearHighlights();
 
   QTextEdit *m_editor;
-  QLabel *m_wordCountLabel;
+  QFrame *m_findReplaceWidget;
+  QLineEdit *m_findLineEdit;
+  QLineEdit *m_replaceLineEdit;
+  QPushButton *m_findPrevButton;
+  QPushButton *m_findNextButton;
+  QPushButton *m_replaceButton;
+  QPushButton *m_replaceAllButton;
+  QPushButton *m_closeButton;
+  QLabel *m_matchLabel;
+  int m_currentMatch;
+  int m_totalMatches;
 };
-
-#endif // EDITORWIDGET_H

@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "FontAwesome.h"
 #include <QtWidgets/QApplication>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QStyleHints>
@@ -161,83 +162,7 @@ void MainWindow::setupToolbar()
 
     // Left section - File controls
     QAction *sidebarAction = new QAction(this);
-
-    // Try different paths for sidebar icon
-    QStringList sidebarPaths = {
-        QCoreApplication::applicationDirPath() + "/../Resources/icons/sidebar.svg",
-        QCoreApplication::applicationDirPath() + "/Contents/Resources/icons/sidebar.svg",
-        ":/icons/sidebar.svg",
-        "../icons/sidebar.svg", // Development path
-        "icons/sidebar.svg"     // Direct path
-    };
-
-    QIcon sidebarIcon;
-    for (const QString &path : sidebarPaths)
-    {
-        QFile file(path);
-        if (file.exists())
-        {
-            // Load SVG content
-            file.open(QIODevice::ReadOnly);
-            QByteArray content = file.readAll();
-            file.close();
-
-            // Replace currentColor with #E0E0E0 in the SVG content
-            QString svgContent = QString::fromUtf8(content);
-            svgContent.replace("currentColor", "#E0E0E0");
-
-            // Create colored versions for different states
-            QIcon icon;
-            QPixmap pixmap(24, 24);
-
-            // Normal state
-            pixmap.fill(Qt::transparent);
-            QPainter painter(&pixmap);
-            painter.setRenderHint(QPainter::Antialiasing);
-            QSvgRenderer renderer(svgContent.toUtf8());
-            renderer.render(&painter);
-            icon.addPixmap(pixmap, QIcon::Normal, QIcon::Off);
-
-            // Hover/Selected state (brighter)
-            pixmap.fill(Qt::transparent);
-            svgContent.replace("#E0E0E0", "#FFFFFF");
-            QSvgRenderer rendererHover(svgContent.toUtf8());
-            rendererHover.render(&painter);
-            icon.addPixmap(pixmap, QIcon::Selected, QIcon::Off);
-            icon.addPixmap(pixmap, QIcon::Active, QIcon::Off);
-
-            // Disabled state (darker)
-            pixmap.fill(Qt::transparent);
-            svgContent.replace("#FFFFFF", "#808080");
-            QSvgRenderer rendererDisabled(svgContent.toUtf8());
-            rendererDisabled.render(&painter);
-            icon.addPixmap(pixmap, QIcon::Disabled, QIcon::Off);
-
-            painter.end();
-
-            if (!icon.isNull())
-            {
-                sidebarIcon = icon;
-                qDebug() << "Loaded sidebar icon from:" << path;
-                break;
-            }
-        }
-    }
-
-    // Use text icon as fallback only if no SVG is found
-    if (sidebarIcon.isNull())
-    {
-        qDebug() << "Failed to load sidebar icon from paths:" << sidebarPaths;
-        sidebarAction->setText("☰");
-        QFont font = sidebarAction->font();
-        font.setPointSize(14);
-        sidebarAction->setFont(font);
-    }
-    else
-    {
-        sidebarAction->setIcon(sidebarIcon);
-    }
-
+    sidebarAction->setIcon(FontAwesome::instance().icon(FontAwesome::Bars));
     sidebarAction->setToolTip("Toggle Sidebar");
     sidebarAction->setCheckable(true);
     sidebarAction->setChecked(true);
@@ -250,44 +175,10 @@ void MainWindow::setupToolbar()
         sidebarButton->setObjectName("sidebarButton");
     }
 
-    // Set application icon
-    QStringList appIconPaths = {
-        QCoreApplication::applicationDirPath() + "/../Resources/icons/app.svg",
-        QCoreApplication::applicationDirPath() + "/Contents/Resources/icons/app.svg",
-        ":/icons/app.svg",
-        "../icons/app.svg", // Development path
-        "icons/app.svg"     // Direct path
-    };
-
-    QIcon appIcon;
-    for (const QString &path : appIconPaths)
-    {
-        QFile file(path);
-        if (file.exists())
-        {
-            appIcon = QIcon(path);
-            if (!appIcon.isNull())
-            {
-                qDebug() << "Loaded app icon from:" << path;
-                break;
-            }
-        }
-    }
-
-    if (!appIcon.isNull())
-    {
-        setWindowIcon(appIcon);
-        qApp->setWindowIcon(appIcon);
-    }
-    else
-    {
-        qDebug() << "Failed to load app icon from paths:" << appIconPaths;
-    }
-
     m_formatToolBar->addSeparator();
 
     // File operations
-    QAction *newAction = m_formatToolBar->addAction(QIcon::fromTheme("document-new"), "New");
+    QAction *newAction = m_formatToolBar->addAction(FontAwesome::instance().icon(FontAwesome::File), "New");
     newAction->setShortcut(QKeySequence::New);
     connect(newAction, &QAction::triggered, m_fileTreeWidget, &FileTreeWidget::createNewFile);
 
@@ -295,17 +186,17 @@ void MainWindow::setupToolbar()
     m_formatToolBar->setStyleSheet(ThemeManager::instance().getStyleSheet("toolbar"));
 
     // Create formatting actions (for context menu)
-    m_boldAction = new QAction(QIcon::fromTheme("format-text-bold"), "Bold", this);
+    m_boldAction = new QAction(FontAwesome::instance().icon(FontAwesome::Bold), "Bold", this);
     m_boldAction->setCheckable(true);
     m_boldAction->setShortcut(QKeySequence::Bold);
     connect(m_boldAction, &QAction::triggered, this, &MainWindow::setBold);
 
-    m_italicAction = new QAction(QIcon::fromTheme("format-text-italic"), "Italic", this);
+    m_italicAction = new QAction(FontAwesome::instance().icon(FontAwesome::Italic), "Italic", this);
     m_italicAction->setCheckable(true);
     m_italicAction->setShortcut(QKeySequence::Italic);
     connect(m_italicAction, &QAction::triggered, this, &MainWindow::setItalic);
 
-    m_underlineAction = new QAction(QIcon::fromTheme("format-text-underline"), "Underline", this);
+    m_underlineAction = new QAction(FontAwesome::instance().icon(FontAwesome::Underline), "Underline", this);
     m_underlineAction->setCheckable(true);
     m_underlineAction->setShortcut(QKeySequence::Underline);
     connect(m_underlineAction, &QAction::triggered, this, &MainWindow::setUnderline);
@@ -315,69 +206,8 @@ void MainWindow::setupToolbar()
     connect(m_editorWidget->editor(), &QTextEdit::customContextMenuRequested,
             this, &MainWindow::showEditorContextMenu);
 
-    // Add distraction-free mode button with icon
-    QStringList distractionFreePaths = {
-        QCoreApplication::applicationDirPath() + "/../Resources/icons/distraction-free.svg",
-        QCoreApplication::applicationDirPath() + "/Contents/Resources/icons/distraction-free.svg",
-        ":/icons/distraction-free.svg",
-        "../icons/distraction-free.svg", // Development path
-        "icons/distraction-free.svg"     // Direct path
-    };
-
-    for (const QString &path : distractionFreePaths)
-    {
-        QFile file(path);
-        if (file.exists())
-        {
-            // Load SVG content
-            file.open(QIODevice::ReadOnly);
-            QByteArray content = file.readAll();
-            file.close();
-
-            // Replace currentColor with #E0E0E0 in the SVG content
-            QString svgContent = QString::fromUtf8(content);
-            svgContent.replace("currentColor", "#E0E0E0");
-
-            // Create colored versions for different states
-            QIcon icon;
-            QPixmap pixmap(24, 24);
-
-            // Normal state
-            pixmap.fill(Qt::transparent);
-            QPainter painter(&pixmap);
-            painter.setRenderHint(QPainter::Antialiasing);
-            QSvgRenderer renderer(svgContent.toUtf8());
-            renderer.render(&painter);
-            icon.addPixmap(pixmap, QIcon::Normal, QIcon::Off);
-
-            // Hover/Selected state (brighter)
-            pixmap.fill(Qt::transparent);
-            svgContent.replace("#E0E0E0", "#FFFFFF");
-            QSvgRenderer rendererHover(svgContent.toUtf8());
-            rendererHover.render(&painter);
-            icon.addPixmap(pixmap, QIcon::Selected, QIcon::Off);
-            icon.addPixmap(pixmap, QIcon::Active, QIcon::Off);
-
-            // Disabled state (darker)
-            pixmap.fill(Qt::transparent);
-            svgContent.replace("#FFFFFF", "#808080");
-            QSvgRenderer rendererDisabled(svgContent.toUtf8());
-            rendererDisabled.render(&painter);
-            icon.addPixmap(pixmap, QIcon::Disabled, QIcon::Off);
-
-            painter.end();
-
-            if (!icon.isNull())
-            {
-                m_distractionFreeIcon = icon;
-                qDebug() << "Loaded distraction-free icon from:" << path;
-                break;
-            }
-        }
-    }
-
-    // Add to toolbar
-    m_distractionFreeAction = m_formatToolBar->addAction(m_distractionFreeIcon, "");
+    // Add distraction-free mode button
+    m_distractionFreeAction = m_formatToolBar->addAction(FontAwesome::instance().icon(FontAwesome::EyeSlash), "");
     m_distractionFreeAction->setToolTip("Distraction Free Mode (F11)");
     m_distractionFreeAction->setCheckable(true);
     m_distractionFreeAction->setShortcut(QKeySequence(Qt::Key_F11));
@@ -688,7 +518,7 @@ void MainWindow::setupMenuBar()
 
     // Add distraction-free mode button
     m_distractionFreeAction = viewMenu->addAction("Distraction Free Mode");
-    m_distractionFreeAction->setIcon(m_distractionFreeIcon);
+    m_distractionFreeAction->setIcon(FontAwesome::instance().icon(FontAwesome::EyeSlash));
     m_distractionFreeAction->setCheckable(true);
     m_distractionFreeAction->setShortcut(QKeySequence(Qt::Key_F11));
     connect(m_distractionFreeAction, &QAction::triggered, this, &MainWindow::toggleDistractionFreeMode);
